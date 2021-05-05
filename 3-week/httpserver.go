@@ -38,4 +38,5 @@ func main()  {
 		}
 	})
 	errG.Wait()
+	log.Println("main end")
 }
