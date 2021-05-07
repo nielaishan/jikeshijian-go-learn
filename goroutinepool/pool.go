@@ -38,25 +38,9 @@ type pool struct {
 	status    int32
 }
 
-func TemplateFunc(i interface{}) {
-	exe, ok := i.(*execUnit)
-	if exe == nil || exe.pool == nil || exe.job == nil || !ok {
-		panic("线程池断言失败")
-	}
-	defer exe.pool.waitGroup.Done()
-	defer func() {
-		if err := recover(); err != nil {
-			buf := make([]byte, 2048)
-			n := runtime.Stack(buf, false)
-			fmt.Println(err, buf[:n])
-		}
-	}()
-	exe.pool.chRet <- exe.job.Func(exe.ctx, exe.job.Input)
-}
-
 /**
 goroutineNum 协程数量
-jobNum：任务数,，jobNum >= 实际任务数，一定要
+jobNum：任务数,
 */
 func NewJobPool(ctx *gin.Context, goroutineNum int, jobNum int) (*pool, error) {
 	jobPool := &pool{}
@@ -71,8 +55,24 @@ func NewJobPool(ctx *gin.Context, goroutineNum int, jobNum int) (*pool, error) {
 		goroutineNum = goroutineMaxNum
 	}
 
+	if jobNum > goroutineMaxNum {
+		jobNum = goroutineMaxNum
+	}
+
 	pool, err := ants.NewPoolWithFunc(goroutineNum, func(i interface{}) {
-		TemplateFunc(i)
+		exe, ok := i.(*execUnit)
+		if !ok || exe == nil || exe.pool == nil || exe.job == nil {
+			panic("线程池断言失败")
+		}
+		defer exe.pool.waitGroup.Done()
+		defer func() {
+			if err := recover(); err != nil {
+				buf := make([]byte, 2048)
+				n := runtime.Stack(buf, false)
+				fmt.Println(err, buf[:n])
+			}
+		}()
+		exe.pool.chRet <- exe.job.Func(exe.ctx, exe.job.Input)
 	})
 	if err != nil {
 		return nil, err
