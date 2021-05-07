@@ -1,7 +1,7 @@
 package goroutinepool
 
 import (
-	"git.zuoyebang.cc/pkg/golib/v2/zlog"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/panjf2000/ants"
 	"runtime"
@@ -48,7 +48,7 @@ func TemplateFunc(i interface{}) {
 		if err := recover(); err != nil {
 			buf := make([]byte, 2048)
 			n := runtime.Stack(buf, false)
-			zlog.Errorf(exe.ctx, "run job with panic: %v, %s", err, buf[:n])
+			fmt.Println(err, buf[:n])
 		}
 	}()
 	exe.pool.chRet <- exe.job.Func(exe.ctx, exe.job.Input)
@@ -75,7 +75,6 @@ func NewJobPool(ctx *gin.Context, goroutineNum int, jobNum int) (*pool, error) {
 		TemplateFunc(i)
 	})
 	if err != nil {
-		zlog.Warnf(ctx, "jobPool init fail error: %v", err)
 		return nil, err
 	}
 	jobPool.pool = pool
@@ -86,7 +85,6 @@ func NewJobPool(ctx *gin.Context, goroutineNum int, jobNum int) (*pool, error) {
 //[]*Job
 func (p *pool) AddJob(ctx *gin.Context, jobs ...*Job) {
 	if atomic.LoadInt32(&(p.status)) != goPool_Running {
-		zlog.Warn(ctx, "this goroutine pool is not a running stat! the stat is ", p.status)
 		return
 	}
 	for _, job := range jobs {
@@ -100,7 +98,6 @@ func (p *pool) AddJob(ctx *gin.Context, jobs ...*Job) {
 		if err != nil {
 			p.chRet <- false
 			p.waitGroup.Done()
-			zlog.Warnf(ctx, "job submit fail err: %v", err)
 		}
 		p.execs = append(p.execs, exe)
 	}
@@ -109,7 +106,6 @@ func (p *pool) AddJob(ctx *gin.Context, jobs ...*Job) {
 func (p *pool) Stop(ctx *gin.Context) {
 
 	if atomic.LoadInt32(&(p.status)) != goPool_Running {
-		zlog.Warn(ctx, "this goroutine pool is not a running stat,can't stop ! the stat is ", p.status)
 		return
 	}
 
@@ -127,7 +123,6 @@ func (p *pool) Stop(ctx *gin.Context) {
 func (p *pool) Wait(ctx *gin.Context, timeout time.Duration) {
 
 	if atomic.LoadInt32(&(p.status)) != goPool_Running {
-		zlog.Warn(ctx, "this goroutine pool is not a running stat,can't stop ! the stat is ", p.status)
 		return
 	}
 	if timeout == 0 {
@@ -143,7 +138,6 @@ func (p *pool) Wait(ctx *gin.Context, timeout time.Duration) {
 			select {
 			case _, ok := <-p.chRet:
 				if !ok {
-					zlog.Error(ctx, "p.chRet is close")
 					return
 				}
 				finishCnt++
@@ -160,10 +154,8 @@ func (p *pool) Wait(ctx *gin.Context, timeout time.Duration) {
 
 	select {
 	case <-time.After(timeout):
-		zlog.Warnf(ctx, "wait timeout when it waits tasks that running , time: %s", timeout.String())
 		return
 	case <-done:
-		zlog.Info(ctx, "all jobs run success")
 		return
 	}
 }
