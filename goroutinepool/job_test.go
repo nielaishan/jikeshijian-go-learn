@@ -1,7 +1,6 @@
 package goroutinepool
 
 import (
-	"git.zuoyebang.cc/pkg/golib/v2/zlog"
 	"github.com/gin-gonic/gin"
 	"testing"
 	"time"
@@ -30,7 +29,6 @@ func Helloword(ctx *gin.Context, input interface{}) bool {
 	//zlog.Infof(ctx, "jobname start: %s", input)
 	i, ok := input.(*HellowordDTO)
 	if !ok {
-		zlog.Warnf(ctx, "断言错误")
 		return false
 	}
 	//zlog.Infof(ctx, "jobname: %v", i.Params)
@@ -49,6 +47,7 @@ func TestPoolDemo(t *testing.T) {
 		Params: req,
 	}
 	pool, _:= NewJobPool(ctx, 1, 1)
+	defer pool.Stop(ctx)
 	pool.AddJob(ctx, &Job{
 		Input:   dto,
 		Name:    "helloword",
